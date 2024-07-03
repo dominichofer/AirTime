@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "AirTime"
+version = "0.0.0"
+dependencies = [
+    "pygame",
+    "numpy",
+    "scipy",
+    "moderngl",
+    "PyGLM",
+]
+
+[tool.pylint]
+disable = [
+    "C0114",  # Missing module docstring
+    "C0115",  # Missing class docstring
+    "C0116",  # Missing function or method docstring
+]
