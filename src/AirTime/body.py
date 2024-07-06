@@ -5,6 +5,27 @@ import glm
 from .camera import Camera
 from .matrix import Matrix, outer
 from .vector import Vector, dot
+from .quaternion import Quaternion
+
+
+@dataclass
+class RigitBody:
+    mass: float
+    inertia_tensor: Matrix
+
+    # State variables
+    pos: Vector
+    rot: Quaternion
+    impulse: Vector
+    angular_momentum: Vector
+
+    # Derived variables
+    velocity: Vector
+    angular_velocity: Vector
+
+    # Computed variables
+    force: Vector
+    torque: Vector
 
 
 class Body:

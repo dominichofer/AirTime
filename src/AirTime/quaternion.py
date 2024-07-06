@@ -1,80 +1,81 @@
 import math
 from dataclasses import dataclass
-from .matrix import Matrix
-from .vector import Vector, norm
+from .vector import Vector
 
 
 @dataclass
 class Quaternion:
-    w: float
-    x: float
-    y: float
-    z: float
+    a: float
+    b: float
+    c: float
+    d: float
 
-    @staticmethod
-    def from_axis_angle(axis: Vector, angle: float) -> "Quaternion":
-        n = norm(axis)
-        if n == 0:
-            return Quaternion(1, 0, 0, 0)
-        axis /= n
-        angle /= 2
-        return Quaternion(math.cos(angle), axis[0] * math.sin(angle), axis[1] * math.sin(angle), axis[2] * math.sin(angle))
+    def __add__(self, o) -> "Quaternion":
+        return Quaternion(self.a + o.a, self.b + o.b, self.c + o.c, self.d + o.d)
 
-    def __add__(self, o):
-        return Quaternion(self.w + o.w, self.x + o.x, self.y + o.y, self.z + o.z)
+    def __sub__(self, o) -> "Quaternion":
+        return Quaternion(self.a - o.a, self.b - o.b, self.c - o.c, self.d - o.d)
 
-    def __sub__(self, o):
-        return Quaternion(self.w - o.w, self.x - o.x, self.y - o.y, self.z - o.z)
+    def __neg__(self) -> "Quaternion":
+        return Quaternion(-self.a, -self.b, -self.c, -self.d)
 
-    def __neg__(self):
-        return Quaternion(-self.w, -self.x, -self.y, -self.z)
-
-    def __mul__(self, o):
+    def __mul__(self, o) -> "Quaternion":
         if isinstance(o, (int, float)):
-            return Quaternion(self.w * o, self.x * o, self.y * o, self.z * o)
-        if isinstance(o, (Vector, Matrix)):
-            return self.rotation_matrix() * o
+            return Quaternion(self.a * o, self.b * o, self.c * o, self.d * o)
         if isinstance(o, Quaternion):
             return Quaternion(
-                +self.z * o.w - self.y * o.x + self.x * o.y + self.w * o.z,
-                +self.y * o.w + self.z * o.x - self.w * o.y + self.x * o.z,
-                -self.x * o.w + self.w * o.x + self.z * o.y + self.y * o.z,
-                -self.w * o.w - self.x * o.x - self.y * o.y + self.z * o.z,
+                self.a * o.a - self.b * o.b - self.c * o.c - self.d * o.d,
+                self.a * o.b + self.b * o.a + self.c * o.d - self.d * o.c,
+                self.a * o.c - self.b * o.d + self.c * o.a + self.d * o.b,
+                self.a * o.d + self.b * o.c - self.c * o.b + self.d * o.a,
             )
+        raise NotImplementedError
 
-    def __rmul__(self, o):
-        if isinstance(o, (int, float, Vector, Matrix)):
+    def __rmul__(self, o) -> "Quaternion":
+        if isinstance(o, (int, float)):
             return o * self
         raise NotImplementedError
 
-    def __str__(self):
-        return f"({self.w}, {self.x}, {self.y}, {self.z})"
+    def __truediv__(self, o):
+        if isinstance(o, (int, float)):
+            return Quaternion(self.a / o, self.b / o, self.c / o, self.d / o)
+        if isinstance(o, Quaternion):
+            return self * o.reciprocal()
+        raise NotImplementedError
 
-    def norm(self):
-        return math.sqrt(self.w**2 + self.x**2 + self.y**2 + self.z**2)
+    def __str__(self) -> str:
+        return f"Quaternion({self.a}, {self.b}, {self.c}, {self.d})"
 
-    def axis(self):
-        n = math.sqrt(self.w**2 + self.x**2 + self.y**2)
-        if n == 0:
-            return (0, 0, 0)
-        return (self.w / n, self.x / n, self.y / n)
+    def conjugated(self) -> "Quaternion":
+        return Quaternion(self.a, -self.b, -self.c, -self.d)
 
-    def angle(self):
+    def norm(self) -> float:
+        return math.sqrt(self.a**2 + self.b**2 + self.c**2 + self.d**2)
+
+    def normalized(self) -> "Quaternion":
         n = self.norm()
-        if n == 0:
-            return 0
-        return 2 * math.acos(self.z / n)
+        return self / n
 
-    def rotation_matrix(self):
-        w, x, y, z = self.w, self.x, self.y, self.z
-        return Matrix(
-            1 - 2 * (x * x + y * y),
-            2 * (w * x - y * z),
-            2 * (w * y + x * z),
-            2 * (w * x + y * z),
-            1 - 2 * (w * w + y * y),
-            2 * (x * y - w * z),
-            2 * (w * y - x * z),
-            2 * (w * z + x * y),
-            1 - 2 * (w * w + x * x),
-        )
+    def reciprocal(self):
+        return self.conjugated() / self.norm()**2
+
+
+class RotationQuaternion(Quaternion):
+    def __init__(self, angle: float, axis: Vector):
+        a = math.cos(angle / 2)
+        b, c, d = math.sin(angle / 2) * axis.normalized()
+        super().__init__(a, b, c, d)
+
+    def axis(self) -> Vector:
+        return Vector(self.b, self.c, self.d).normalized()
+
+    def angle(self) -> float:
+        return 2 * math.atan2(Vector(self.b, self.c, self.d).length(), self.a)
+
+    def rotate(self, v: Vector) -> Vector:
+        q = Quaternion(0, *v)
+        r = self * q * self.conjugated()
+        return Vector(r.b, r.c, r.d)
+
+    def __str__(self) -> str:
+        return f"RotationQuaternion({self.a}, {self.b}, {self.c}, {self.d})"
